@@ -53,6 +53,9 @@ public class Main extends AppCompatActivity {
                 // Handle privacyPolicy
             } else if (itemId == R.id.notification) {
                 // Handle notification
+
+
+
             } else if (itemId == R.id.nav_logout) {
                 GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                         .requestIdToken(getString(R.string.default_web_client_id))
