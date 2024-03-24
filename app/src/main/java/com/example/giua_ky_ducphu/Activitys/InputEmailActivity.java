@@ -50,7 +50,7 @@ public class InputEmailActivity extends AppCompatActivity {
         progressDialog = ProgressDialog.show(InputEmailActivity.this, "App", "Loading...", true);
         String stringSenderEmail = "firebase683@gmail.com";
         String stringReceiverEmail = receiver;
-        String stringPasswordSenderEmail = "fbpx bpkb exaa acgv";
+        String stringPasswordSenderEmail = "pmei knlr idbd nkgy";
         String stringHost = "smtp.gmail.com";
         Properties properties = new Properties();
         properties.put("mail.smtp.host", stringHost);

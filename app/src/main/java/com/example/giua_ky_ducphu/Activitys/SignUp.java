@@ -9,13 +9,16 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Patterns;
+import android.view.WindowManager;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.giua_ky_ducphu.Interfaces.OTPEven;
 import com.example.giua_ky_ducphu.Interfaces.OnUserNameCheckListener;
 import com.example.giua_ky_ducphu.Models.Users;
 import com.example.giua_ky_ducphu.databinding.ActivitySignUpBinding;
 import com.example.giua_ky_ducphu.databinding.DialogCustomBinding;
+import com.example.giua_ky_ducphu.databinding.DialogCustomOtpBinding;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -24,6 +27,17 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import java.util.HashMap;
+import java.util.Properties;
+import java.util.Random;
+
+import javax.mail.Authenticator;
+import javax.mail.Message;
+import javax.mail.MessagingException;
+import javax.mail.PasswordAuthentication;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
 
 public class SignUp extends AppCompatActivity {
     private ActivitySignUpBinding binding;
@@ -32,6 +46,8 @@ public class SignUp extends AppCompatActivity {
     private ProgressDialog progressDialog;
     private DatabaseReference databaseReference;
     private OnUserNameCheckListener onUserNameCheckListener;
+
+    private String otp_Key;
 
 
     @Override
@@ -79,7 +95,17 @@ public class SignUp extends AppCompatActivity {
                         progressDialog.dismiss();
                         Toast.makeText(getApplicationContext(), "không đúng định dạng mail", Toast.LENGTH_SHORT).show();
                     } else {
-                        Register(userName, email, password);
+                        creatOtp(email, new OTPEven() {
+                            @Override
+                            public void onOTPVerified(boolean isVerified) {
+                               register(userName,email,password);
+                            }
+
+                            @Override
+                            public void onOTPCanceled(boolean isCanceled) {
+                               progressDialog.dismiss();
+                            }
+                        });
                     }
                 }
             });
@@ -91,7 +117,7 @@ public class SignUp extends AppCompatActivity {
     }
 
 
-    private void Register(String userName, String email, String password) {
+    private void register(String userName, String email, String password) {
         auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener(task -> {
             if (task.isSuccessful()) {
                 FirebaseUser user = auth.getCurrentUser();
@@ -106,7 +132,6 @@ public class SignUp extends AppCompatActivity {
                 hashMap.put("email", email);
                 hashMap.put("password", password);
                 hashMap.put("typeAccount", "1");
-
                 databaseReference.setValue(hashMap).addOnCompleteListener(task1 -> {
                     if (task1.isSuccessful()) {
                         progressDialog.dismiss();
@@ -166,6 +191,103 @@ public class SignUp extends AppCompatActivity {
                 }
             }
         });
+    }
+    private void dialog_OTP(int a, OTPEven callback) {
+        if (!isFinishing()) {
+            Dialog dialog = new Dialog(this);
+            DialogCustomOtpBinding dialogView = DialogCustomOtpBinding.inflate(getLayoutInflater());
+            dialog.setContentView(dialogView.getRoot());
+            dialog.setCancelable(false);
+
+            WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams();
+            layoutParams.copyFrom(dialog.getWindow().getAttributes());
+            layoutParams.width = WindowManager.LayoutParams.MATCH_PARENT;
+            layoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT;
+            dialog.getWindow().setAttributes(layoutParams);
+
+            dialogView.exit.setOnClickListener(v -> {
+                dialog.dismiss();
+                callback.onOTPCanceled(false);
+            });
+
+            dialogView.XacthucBtn.setOnClickListener(v -> {
+                String otp = dialogView.pinview.getText().toString();
+                if (otp.isEmpty() || otp.length() > 6) {
+                    Toast.makeText(getApplicationContext(), "Hãy nhập đầy đủ otp", Toast.LENGTH_SHORT).show();
+                } else {
+                    if (otp_Key.equals(otp)) {
+                        dialog.dismiss();
+                        callback.onOTPVerified(true);
+                    } else {
+                        Toast.makeText(getApplicationContext(), "OTP không chính xác", Toast.LENGTH_SHORT).show();
+                        dialogView.pinview.setText("");
+                    }
+                }
+            });
+
+            if (a == 1) {
+                dialog.show();
+            } else {
+                dialog.dismiss();
+            }
+        }
+    }
+
+
+
+
+    private void creatOtp(String receiver, OTPEven callback) {
+        String randomDigits = generateRandomDigits(6);
+        otp_Key = randomDigits;
+        sendOTP(receiver, randomDigits, callback);
+    }
+
+    private String generateRandomDigits(int length) {
+        StringBuilder builder = new StringBuilder();
+        Random random = new Random();
+        for (int i = 0; i < length; i++) {
+            builder.append(random.nextInt(10));
+        }
+        return builder.toString();
+    }
+
+    private void sendOTP(String receiver, String otp, OTPEven callback) {
+        String senderEmail = "firebase683@gmail.com";
+        String receiverEmail = receiver;
+        String passwordSenderEmail = "pmei knlr idbd nkgy";
+        String host = "smtp.gmail.com";
+        Properties properties = new Properties();
+        properties.put("mail.smtp.host", host);
+        properties.put("mail.smtp.port", "465");
+        properties.put("mail.smtp.ssl.enable", "true");
+        properties.put("mail.smtp.auth", "true");
+        properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+
+        Session session = Session.getInstance(properties, new Authenticator() {
+            @Override
+            protected PasswordAuthentication getPasswordAuthentication() {
+                return new PasswordAuthentication(senderEmail, passwordSenderEmail);
+            }
+        });
+
+        MimeMessage mimeMessage = new MimeMessage(session);
+        try {
+            mimeMessage.setRecipient(Message.RecipientType.TO, new InternetAddress(receiverEmail));
+            mimeMessage.setSubject("send otp:");
+            mimeMessage.setText("OTP : " + otp);
+        } catch (MessagingException e) {
+            e.printStackTrace();
+        }
+
+        Thread thread = new Thread(() -> {
+            try {
+                Transport.send(mimeMessage);
+                runOnUiThread(() -> dialog_OTP(1, callback));
+            } catch (MessagingException e) {
+                e.printStackTrace();
+            }
+        });
+        thread.start();
     }
 
 }

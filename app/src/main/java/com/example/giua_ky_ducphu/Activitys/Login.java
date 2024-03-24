@@ -62,8 +62,10 @@ public class Login extends AppCompatActivity {
 
     private void loginWithUsername(String email, String password) {
         progressDialog = ProgressDialog.show(this, "App", "Loading...", true);
-        FirebaseDatabase.getInstance("https://coffe-app-19ec3-default-rtdb.asia-southeast1.firebasedatabase.app/")
-                .getReference("Users")
+        FirebaseDatabase
+                .getInstance("https://coffe-app-19ec3-default-rtdb.asia-southeast1.firebasedatabase.app/")
+                .getReference("User")
+
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot snapshot) {
